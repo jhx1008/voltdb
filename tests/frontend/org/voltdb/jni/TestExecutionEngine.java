@@ -42,11 +42,14 @@ import org.voltdb.TableStreamType;
 import org.voltdb.TheHashinator.HashinatorConfig;
 import org.voltdb.TheHashinator.HashinatorType;
 import org.voltdb.VoltDB;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.exceptions.EEException;
+import org.voltdb.exceptions.SQLException;
+import org.voltdb.exceptions.SerializableException;
 import org.voltdb.expressions.HashRangeExpressionBuilder;
 import org.voltdb.sysprocs.saverestore.SnapshotPredicates;
 
@@ -85,7 +88,7 @@ public class TestExecutionEngine extends TestCase {
 //        terminateSourceEngine();
 //    }
 
-    private void loadTestTables(Catalog catalog) throws Exception
+    private void loadTestTables(Catalog catalog, boolean undo) throws Exception
     {
         int WAREHOUSE_TABLEID = warehouseTableId(catalog);
         int STOCK_TABLEID = stockTableId(catalog);
@@ -101,19 +104,26 @@ public class TestExecutionEngine extends TestCase {
                 new VoltTable.ColumnInfo("W_TAX", VoltType.FLOAT),
                 new VoltTable.ColumnInfo("W_YTD", VoltType.FLOAT)
         );
-        for (int i = 0; i < 200; ++i) {
+        for (int i = 0; i < 2; ++i) {
             warehousedata.addRow(i, "name" + i, "st1", "st2", "city", "ST", "zip", 0, 0);
         }
 
         System.out.println(warehousedata.toString());
+        long latestUndoToken = 0;
+
         // Long.MAX_VALUE is a no-op don't track undo token
-        sourceEngine.loadTable(WAREHOUSE_TABLEID, warehousedata, 0, 0, 0, 0, false, false, Long.MAX_VALUE);
+        sourceEngine.loadTable(WAREHOUSE_TABLEID, warehousedata, 0, 0, 0, 0, false, false,
+                (undo) ? ++latestUndoToken : Long.MAX_VALUE);
 
         //Check that we can detect and handle the dups when loading the data twice
-        byte results[] = sourceEngine.loadTable(WAREHOUSE_TABLEID, warehousedata, 0, 0, 0, 0, true, false, Long.MAX_VALUE);
-        System.out.println("Printing dups");
-        System.out.println(PrivateVoltTableFactory.createVoltTableFromBuffer(ByteBuffer.wrap(results), true));
-
+        try {
+            byte results[] = sourceEngine.loadTable(WAREHOUSE_TABLEID, warehousedata, 0, 0, 0, 0, !undo, false,
+                    (undo) ? ++latestUndoToken : Long.MAX_VALUE);
+            System.out.println("Printing dups");
+            System.out.println(PrivateVoltTableFactory.createVoltTableFromBuffer(ByteBuffer.wrap(results), true));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         VoltTable stockdata = new VoltTable(
                 new VoltTable.ColumnInfo("S_I_ID", VoltType.INTEGER),
@@ -140,7 +150,8 @@ public class TestExecutionEngine extends TestCase {
                              "sdist9", "sdist10", 0, 0, 0, "sdata");
         }
         // Long.MAX_VALUE is a no-op don't track undo token
-        sourceEngine.loadTable(STOCK_TABLEID, stockdata, 0, 0, 0, 0, false, false, Long.MAX_VALUE);
+        sourceEngine.loadTable(STOCK_TABLEID, stockdata, 0, 0, 0, 0, false, false,
+                (undo) ? ++latestUndoToken : Long.MAX_VALUE);
     }
 
     public void testLoadTable() throws Exception {
@@ -150,9 +161,22 @@ public class TestExecutionEngine extends TestCase {
         int WAREHOUSE_TABLEID = warehouseTableId(m_catalog);
         int STOCK_TABLEID = stockTableId(m_catalog);
 
-        loadTestTables(m_catalog);
+        loadTestTables(m_catalog, true);
 
-        assertEquals(200, sourceEngine.serializeTable(WAREHOUSE_TABLEID).getRowCount());
+        assertEquals(2, sourceEngine.serializeTable(WAREHOUSE_TABLEID).getRowCount());
+        assertEquals(1000, sourceEngine.serializeTable(STOCK_TABLEID).getRowCount());
+        terminateSourceEngine();
+
+        // try with undo enabled
+        initializeSourceEngine(1);
+        sourceEngine.loadCatalog( 0, m_catalog.serialize());
+
+        WAREHOUSE_TABLEID = warehouseTableId(m_catalog);
+        STOCK_TABLEID = stockTableId(m_catalog);
+
+        loadTestTables(m_catalog, true);
+
+        assertEquals(2, sourceEngine.serializeTable(WAREHOUSE_TABLEID).getRowCount());
         assertEquals(1000, sourceEngine.serializeTable(STOCK_TABLEID).getRowCount());
         terminateSourceEngine();
     }
@@ -194,7 +218,7 @@ public class TestExecutionEngine extends TestCase {
         int WAREHOUSE_TABLEID = warehouseTableId(m_catalog);
         int STOCK_TABLEID = stockTableId(m_catalog);
 
-        loadTestTables(m_catalog);
+        loadTestTables(m_catalog, false);
 
         sourceEngine.activateTableStream( WAREHOUSE_TABLEID, TableStreamType.RECOVERY, Long.MAX_VALUE,
                                           new SnapshotPredicates(-1).toBytes());
@@ -338,7 +362,7 @@ public class TestExecutionEngine extends TestCase {
 
         int STOCK_TABLEID = stockTableId(m_catalog);
 
-        loadTestTables(m_catalog);
+        loadTestTables(m_catalog, false);
 
         SnapshotPredicates predicates = new SnapshotPredicates(-1);
         predicates.addPredicate(new HashRangeExpressionBuilder()

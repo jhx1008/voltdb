@@ -83,7 +83,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure
             result.addRow(currentPartition);
             try {
                 // voltLoadTable is void. Assume success or exception.
-                byte uniqueViolations[] = DeprecatedProcedureAPIAccess.voltLoadTable(
+                DeprecatedProcedureAPIAccess.voltLoadTable(
                                     this,
                                     context.getCluster().getTypeName(),
                                     context.getDatabase().getTypeName(),
