@@ -421,7 +421,6 @@ Java_org_voltdb_jni_ExecutionEngine_nativeLoadTable (
     }
 
     engine->resetReusedResultOutputBuffer();
-    engine->setUndoToken(undoToken);
 
     //JNIEnv pointer can change between calls, must be updated
     updateJNILogProxy(engine);
@@ -436,7 +435,7 @@ Java_org_voltdb_jni_ExecutionEngine_nativeLoadTable (
         try {
             bool success = engine->loadTable(table_id, serialize_in, txnId,
                                              spHandle, lastCommittedSpHandle, uniqueId,
-                                             returnUniqueViolations, shouldDRStream);
+                                             returnUniqueViolations, shouldDRStream, undoToken);
             env->ReleaseByteArrayElements(serialized_table, bytes, JNI_ABORT);
             VOLT_DEBUG("deserialized table");
 

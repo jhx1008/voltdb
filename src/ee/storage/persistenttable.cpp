@@ -1568,12 +1568,21 @@ void PersistentTable::processLoadedTuple(TableTuple& tuple,
                                          ReferenceSerializeOutput* uniqueViolationOutput,
                                          int32_t& serializedTupleCount,
                                          size_t& tupleCountPosition,
-                                         bool shouldDRStreamRows) {
+                                         bool shouldDRStreamRows,
+                                         bool ignoreTupleLimit) {
+
     try {
+        if (!ignoreTupleLimit && visibleTupleCount() >= m_tupleLimit) {
+                    char buffer [256];
+                    snprintf (buffer, 256, "Table %s exceeds table maximum row count %d",
+                            m_name.c_str(), m_tupleLimit);
+                    throw ConstraintFailureException(this, tuple, buffer);
+        }
         insertTupleCommon(tuple, tuple, true, shouldDRStreamRows);
     }
     catch (ConstraintFailureException& e) {
         if ( ! uniqueViolationOutput) {
+            deleteTupleStorage(tuple);
             throw;
         }
         if (serializedTupleCount == 0) {

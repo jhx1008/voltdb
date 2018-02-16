@@ -662,7 +662,8 @@ private:
                                     ReferenceSerializeOutput* uniqueViolationOutput,
                                     int32_t& serializedTupleCount,
                                     size_t& tupleCountPosition,
-                                    bool shouldDRStreamRows);
+                                    bool shouldDRStreamRows,
+                                    bool ignoreTupleLimit = true);
 
     enum LookupType {
         LOOKUP_BY_VALUES,

@@ -300,7 +300,8 @@ protected:
                                     ReferenceSerializeOutput* uniqueViolationOutput,
                                     int32_t& serializedTupleCount,
                                     size_t& tupleCountPosition,
-                                    bool shouldDRStreamRow) { }
+                                    bool shouldDRStreamRow,
+                                    bool ignoreTupleLimit) { }
 
     virtual void swapTuples(TableTuple& sourceTupleWithNewValues, TableTuple& destinationTuple) {
         throwFatalException("Unsupported operation");

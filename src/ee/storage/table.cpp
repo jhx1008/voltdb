@@ -475,6 +475,7 @@ void Table::loadTuplesFromNoHeader(SerializeInputBE &serialInput,
         lengthPosition = uniqueViolationOutput->reserveBytes(4);
     }
 
+    bool ignoreTupleLimit = (ExecutorContext::currentUndoQuantum() == NULL);
     for (int i = 0; i < tupleCount; ++i) {
         nextFreeTuple(&target);
         target.setActiveTrue();
@@ -484,7 +485,7 @@ void Table::loadTuplesFromNoHeader(SerializeInputBE &serialInput,
 
         target.deserializeFrom(serialInput, stringPool);
 
-        processLoadedTuple(target, uniqueViolationOutput, serializedTupleCount, tupleCountPosition, shouldDRStreamRow);
+        processLoadedTuple(target, uniqueViolationOutput, serializedTupleCount, tupleCountPosition, shouldDRStreamRow, ignoreTupleLimit);
     }
 
     //If unique constraints are being handled, write the length/size of constraints that occured
