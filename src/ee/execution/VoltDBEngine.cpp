@@ -1580,6 +1580,8 @@ VoltDBEngine::loadTable(int32_t tableId,
                                              uniqueId,
                                              false);
 
+    m_executorContext->checkTransactionForDR();
+
     Table* ret = getTableById(tableId);
     if (ret == NULL) {
         VOLT_ERROR("Table ID %d doesn't exist. Could not load data",
@@ -1598,7 +1600,7 @@ VoltDBEngine::loadTable(int32_t tableId,
         ConditionalSynchronizedExecuteWithMpMemory possiblySynchronizedUseMpMemory(
                 table->isCatalogTableReplicated(), isLowestSite(), s_loadTableResult);
         if (possiblySynchronizedUseMpMemory.okToExecute()) {
-            table->loadTuplesFrom(serializeIn, NULL, returnUniqueViolations ? &m_resultOutput : NULL, shouldDRStream);
+            table->loadTuplesFrom(serializeIn, &m_stringPool, returnUniqueViolations ? &m_resultOutput : NULL, shouldDRStream, true);
             s_loadTableResult = 0;
         }
         else {
@@ -1606,7 +1608,7 @@ VoltDBEngine::loadTable(int32_t tableId,
                 // An exception was thrown on the lowest site thread and we need to throw here as well so
                 // all threads are in the same state
                 char msg[1024];
-                snprintf(msg, 1024, "Replicated table insert threw an unknown exception on other thread for table %s",
+                snprintf(msg, 1024, "Replicated load table threw an unknown exception on other thread for table %s",
                            table->name().c_str());
                 VOLT_DEBUG("%s", msg);
                 throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_REPLICATED_TABLE, msg);
@@ -1618,6 +1620,7 @@ VoltDBEngine::loadTable(int32_t tableId,
             // Assign the correct pool back to this thread
             SynchronizedThreadLock::signalLowestSiteFinished();
         }
+        VOLT_DEBUG("AAA loadTable throw %d %s", e.getType(), e.message().c_str());
         if (returnUniqueViolations) {
             throwFatalException("%s", e.message().c_str());
         }

@@ -443,7 +443,9 @@ Java_org_voltdb_jni_ExecutionEngine_nativeLoadTable (
                 return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
         } catch (const SerializableEEException &e) {
             engine->resetReusedResultOutputBuffer();
+            VOLT_DEBUG("AAA Engine  %p (%d) nativeLoadTable caught see %d, %s", engine, engine->getPartitionId(), e.getType(), e.message().c_str());
             e.serialize(engine->getExceptionOutputSerializer());
+            VOLT_DEBUG("AAA Engine  %p (%d) nativeLoadTable serilized see",engine,  engine->getPartitionId());
         }
     } catch (const FatalException &e) {
         topend->crashVoltDB(e);

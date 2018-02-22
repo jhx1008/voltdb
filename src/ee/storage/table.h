@@ -216,7 +216,8 @@ class Table {
     void loadTuplesFromNoHeader(SerializeInputBE& serialInput,
                                 Pool* stringPool = NULL,
                                 ReferenceSerializeOutput* uniqueViolationOutput = NULL,
-                                bool shouldDRStreamRows = false);
+                                bool shouldDRStreamRows = false,
+                                bool forLoadTable = false);
 
     /**
      * Loads only tuple data, not schema, from the serialized table.
@@ -225,7 +226,8 @@ class Table {
     void loadTuplesFrom(SerializeInputBE& serialInput,
                         Pool* stringPool = NULL,
                         ReferenceSerializeOutput* uniqueViolationOutput = NULL,
-                        bool shouldDRStreamRows = false);
+                        bool shouldDRStreamRows = false,
+                        bool forLoadTable = false);
 
 
     // ------------------------------------------------------------------
@@ -301,7 +303,8 @@ protected:
                                     int32_t& serializedTupleCount,
                                     size_t& tupleCountPosition,
                                     bool shouldDRStreamRow,
-                                    bool ignoreTupleLimit) { }
+                                    bool ignoreTupleLimit,
+                                    bool forLoadTable) { }
 
     virtual void swapTuples(TableTuple& sourceTupleWithNewValues, TableTuple& destinationTuple) {
         throwFatalException("Unsupported operation");

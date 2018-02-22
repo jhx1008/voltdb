@@ -125,10 +125,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure
                 }
             }
 
-            // sum up all the modified rows from all partitions
-            long rowsModified = 0;
-            for (long l : modifiedTuples)
-                rowsModified += l;
+            // using modified rows from lowest partitions
+            long rowsModified =  modifiedTuples[0];
 
             result.addRow(rowsModified);
             log.debug("Finish Frag 2 LoadMultipartitionTable");
@@ -169,7 +167,14 @@ public class LoadMultipartitionTable extends VoltSystemProcedure
             throw new VoltAbortException("Table not present in catalog.");
         }
 
+        if (!catTable.getIsreplicated()) {
+            throw new VoltAbortException("LoadMultipartitionTable no longer supports loading partitioned tables" +
+                    " use CRUD procs instead");
+        }
+
         boolean isUpsert = (upsertMode != 0);
+
+        // TODO verify table has right schema as catTable
 
         // use loadTable path for bulk insert
         if (!isUpsert && table.getRowCount() > 1) {
@@ -246,41 +251,36 @@ public class LoadMultipartitionTable extends VoltSystemProcedure
         SQLStmt stmt = new SQLStmt(catStmt.getSqltext());
         m_runner.initSQLStmt(stmt, catStmt);
 
-        if (catTable.getIsreplicated()) {
-            long queued = 0;
-            long executed = 0;
 
-            // make sure at the start of the table
-            table.resetRowPosition();
-            for (int i = 1; table.advanceRow(); ++i) {
-                Object[] params = new Object[columnCount];
+        long queued = 0;
+        long executed = 0;
 
-                // get the parameters from the volt table
-                for (int col = 0; col < columnCount; ++col) {
-                    params[col] = table.get(col, table.getColumnType(col));
-                }
+        // make sure at the start of the table
+        table.resetRowPosition();
+        for (int i = 1; table.advanceRow(); ++i) {
+            Object[] params = new Object[columnCount];
 
-                // queue an insert and count it
-                voltQueueSQL(stmt, params);
-                ++queued;
-
-                // every 100 statements, exec the batch
-                // 100 is an arbitrary number
-                if ((i % 100) == 0) {
-                    executed += executeSQL(false);
-                }
-            }
-            // execute any leftover batched statements
-            if (queued > executed) {
-                executed += executeSQL(true);
+            // get the parameters from the volt table
+            for (int col = 0; col < columnCount; ++col) {
+                params[col] = table.get(col, table.getColumnType(col));
             }
 
-            return executed;
+            // queue an insert and count it
+            voltQueueSQL(stmt, params);
+            ++queued;
+
+            // every 100 statements, exec the batch
+            // 100 is an arbitrary number
+            if ((i % 100) == 0) {
+                executed += executeSQL(false);
+            }
         }
-        else {
-            throw new VoltAbortException("LoadMultipartitionTable no longer supports loading partitioned tables" +
-                                         " use CRUD procs instead");
+        // execute any leftover batched statements
+        if (queued > executed) {
+            executed += executeSQL(true);
         }
+
+        return executed;
     }
 
     /**

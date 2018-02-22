@@ -1564,25 +1564,46 @@ std::string PersistentTable::debug(const std::string& spacer) const {
  * to do additional processing for views and Export and non-inline
  * memory tracking
  */
-void PersistentTable::processLoadedTuple(TableTuple& tuple,
+void PersistentTable::processLoadedTuple(TableTuple& source,
                                          ReferenceSerializeOutput* uniqueViolationOutput,
                                          int32_t& serializedTupleCount,
                                          size_t& tupleCountPosition,
                                          bool shouldDRStreamRows,
-                                         bool ignoreTupleLimit) {
+                                         bool ignoreTupleLimit,
+                                         bool forLoadTable) {
 
+    TableTuple target;
     try {
         if (!ignoreTupleLimit && visibleTupleCount() >= m_tupleLimit) {
                     char buffer [256];
                     snprintf (buffer, 256, "Table %s exceeds table maximum row count %d",
                             m_name.c_str(), m_tupleLimit);
-                    throw ConstraintFailureException(this, tuple, buffer);
+                    throw ConstraintFailureException(this, source, buffer);
         }
-        insertTupleCommon(tuple, tuple, true, shouldDRStreamRows);
+
+        VOLT_DEBUG("AAA processLoadedTuple start");
+        if (forLoadTable) {
+            target = TableTuple(m_schema);
+            nextFreeTuple(&target);
+            target.setActiveTrue();
+            target.setDirtyFalse();
+            target.setPendingDeleteFalse();
+            target.setPendingDeleteOnUndoReleaseFalse();
+            // Then copy the source into the target
+            target.copyForPersistentInsert(source);
+        } else {
+            target = source;
+        }
+
+        VOLT_DEBUG("AAA processLoadedTuple finish, %s", target.debug().c_str());
+
+        insertTupleCommon(source, target, true, shouldDRStreamRows);
     }
     catch (ConstraintFailureException& e) {
         if ( ! uniqueViolationOutput) {
-            deleteTupleStorage(tuple);
+            VOLT_DEBUG("AAA processLoadedTuple caught ConstraintFailureException, type %d, %s", e.getType(), e.message().c_str());
+            deleteTupleStorage(target);
+            VOLT_DEBUG("AAA processLoadedTuple deleteTupleStorage");
             throw;
         }
         if (serializedTupleCount == 0) {
@@ -1590,8 +1611,8 @@ void PersistentTable::processLoadedTuple(TableTuple& tuple,
             tupleCountPosition = uniqueViolationOutput->reserveBytes(sizeof(int32_t));
         }
         serializedTupleCount++;
-        tuple.serializeTo(*uniqueViolationOutput);
-        deleteTupleStorage(tuple);
+        target.serializeTo(*uniqueViolationOutput);
+        deleteTupleStorage(target);
     }
 }
 
