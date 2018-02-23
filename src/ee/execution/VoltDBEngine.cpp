@@ -1580,7 +1580,10 @@ VoltDBEngine::loadTable(int32_t tableId,
                                              uniqueId,
                                              false);
 
-    m_executorContext->checkTransactionForDR();
+    bool forBulkLoad = ExecutorContext::currentUndoQuantum() == NULL;
+    if (forBulkLoad) {
+        m_executorContext->checkTransactionForDR();
+    }
 
     Table* ret = getTableById(tableId);
     if (ret == NULL) {
@@ -1600,7 +1603,7 @@ VoltDBEngine::loadTable(int32_t tableId,
         ConditionalSynchronizedExecuteWithMpMemory possiblySynchronizedUseMpMemory(
                 table->isCatalogTableReplicated(), isLowestSite(), s_loadTableResult);
         if (possiblySynchronizedUseMpMemory.okToExecute()) {
-            table->loadTuplesFrom(serializeIn, &m_stringPool, returnUniqueViolations ? &m_resultOutput : NULL, shouldDRStream, true);
+            table->loadTuplesFrom(serializeIn, &m_stringPool, returnUniqueViolations ? &m_resultOutput : NULL, shouldDRStream, forBulkLoad, true);
             s_loadTableResult = 0;
         }
         else {

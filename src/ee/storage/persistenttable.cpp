@@ -687,6 +687,7 @@ void PersistentTable::swapTable(PersistentTable* otherTable,
     assert(hasNameIntegrity(name(), otherIndexNames));
     assert(hasNameIntegrity(otherTable->name(), theIndexNames));
 
+    ConditionalExecuteOutsideMpMemory getOutOfMpMemory(m_isReplicated);
     ExecutorContext::getEngine()->rebuildTableCollections(m_isReplicated, false);
 }
 

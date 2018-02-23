@@ -217,6 +217,7 @@ class Table {
                                 Pool* stringPool = NULL,
                                 ReferenceSerializeOutput* uniqueViolationOutput = NULL,
                                 bool shouldDRStreamRows = false,
+                                bool ignoreTupleLimit = true,
                                 bool forLoadTable = false);
 
     /**
@@ -227,6 +228,7 @@ class Table {
                         Pool* stringPool = NULL,
                         ReferenceSerializeOutput* uniqueViolationOutput = NULL,
                         bool shouldDRStreamRows = false,
+                        bool ignoreTupleLimit = true,
                         bool forLoadTable = false);
 
 

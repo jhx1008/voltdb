@@ -461,6 +461,7 @@ void Table::loadTuplesFromNoHeader(SerializeInputBE &serialInput,
                                    Pool *stringPool,
                                    ReferenceSerializeOutput *uniqueViolationOutput,
                                    bool shouldDRStreamRow,
+                                   bool ignoreTupleLimit,
                                    bool forLoadTable) {
     int tupleCount = serialInput.readInt();
     assert(tupleCount >= 0);
@@ -474,11 +475,7 @@ void Table::loadTuplesFromNoHeader(SerializeInputBE &serialInput,
         lengthPosition = uniqueViolationOutput->reserveBytes(4);
     }
 
-    bool ignoreTupleLimit = (ExecutorContext::currentUndoQuantum() == NULL);
-
     TableTuple source;
-
-
     for (int i = 0; i < tupleCount; ++i) {
         VOLT_DEBUG("AAA loadTuplesFromNoHeader start");
         if (forLoadTable) {
@@ -518,6 +515,7 @@ void Table::loadTuplesFrom(SerializeInputBE &serialInput,
                            Pool *stringPool,
                            ReferenceSerializeOutput *uniqueViolationOutput,
                            bool shouldDRStreamRow,
+                           bool ignoreTupleLimit,
                            bool forLoadTable) {
     /*
      * directly receives a VoltTable buffer.
@@ -576,7 +574,7 @@ void Table::loadTuplesFrom(SerializeInputBE &serialInput,
                                       message.str().c_str());
     }
 
-    loadTuplesFromNoHeader(serialInput, stringPool, uniqueViolationOutput, shouldDRStreamRow, forLoadTable);
+    loadTuplesFromNoHeader(serialInput, stringPool, uniqueViolationOutput, shouldDRStreamRow, ignoreTupleLimit, forLoadTable);
 }
 
 }
